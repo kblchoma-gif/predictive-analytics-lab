@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Predictive Analytics Lab — Immersive</title>
+<style>
+  body { margin: 0; background: #0a0a0a; color: #e0e0e0;
+         font-family: Inter, Helvetica, sans-serif; overflow: hidden; }
+  #hud { position: fixed; top: 20px; left: 20px; z-index: 10;
+         background: rgba(20,20,20,0.9); padding: 16px 20px;
+         border: 1px solid #222; border-radius: 4px; }
+  #hud h1 { font-size: 13px; letter-spacing: 3px; margin: 0 0 8px 0;
+            color: #8b0000; text-transform: uppercase; }
+  #hud p { font-size: 11px; color: #888; margin: 4px 0;
+           letter-spacing: 1px; }
+  #enter-vr { position: fixed; bottom: 30px; left: 50%;
+              transform: translateX(-50%); z-index: 10;
+              background: #8b0000; color: #fff; border: none;
+              padding: 14px 36px; font-size: 12px;
+              letter-spacing: 2px; text-transform: uppercase;
+              cursor: pointer; border-radius: 3px; }
+  #enter-vr:disabled { opacity: 0.4; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <h1>Immersive Analytics</h1>
+  <p id="status">Loading data…</p>
+  <p id="hint">Orbit: drag · Zoom: scroll · Hover: point</p>
+</div>
+<button id="enter-vr" disabled>Enter VR</button>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0a0a);
+scene.fog = new THREE.FogExp2(0x0a0a0a, 0.015);
+
+const camera = new THREE.PerspectiveCamera(
+  60, window.innerWidth / window.innerHeight, 0.1, 200
+);
+camera.position.set(0, 6, 14);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.xr.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0x8899aa, 0x0a0a0a, 0.6));
+const key = new THREE.DirectionalLight(0xffffff, 0.8);
+key.position.set(8, 12, 6);
+scene.add(key);
+const rim = new THREE.PointLight(0x8b0000, 1.2, 40);
+rim.position.set(-6, 4, -6);
+scene.add(rim);
+
+scene.add(new THREE.GridHelper(20, 20, 0x222222, 0x151515));
+
+function axisLine(dir, color) {
+  const geom = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0),
+    dir.clone().multiplyScalar(8),
+  ]);
+  scene.add(new THREE.Line(
+    geom, new THREE.LineBasicMaterial({ color })
+  ));
+}
+axisLine(new THREE.Vector3(1, 0, 0), 0x8b0000);
+axisLine(new THREE.Vector3(0, 1, 0), 0x6a0dad);
+axisLine(new THREE.Vector3(0, 0, 1), 0x2d1b4e);
+
+let dataPoints = [];
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let pointsMesh;
+
+function colourForValue(v) {
+  const c = new THREE.Color();
+  c.setHSL(0.75 - 0.6 * v, 0.7, 0.35 + 0.25 * v);
+  return c;
+}
+
+function renderPoints() {
+  const geom = new THREE.BufferGeometry();
+  const positions = new Float32Array(dataPoints.length * 3);
+  const colors = new Float32Array(dataPoints.length * 3);
+  dataPoints.forEach((p, i) => {
+    positions[i*3]   = p.x;
+    positions[i*3+1] = p.y;
+    positions[i*3+2] = p.z;
+    const c = colourForValue(p.value);
+    colors[i*3]   = c.r;
+    colors[i*3+1] = c.g;
+    colors[i*3+2] = c.b;
+  });
+  geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 0.22, vertexColors: true, transparent: true,
+    opacity: 0.9, sizeAttenuation: true,
+  });
+  pointsMesh = new THREE.Points(geom, mat);
+  scene.add(pointsMesh);
+}
+
+async function loadData() {
+  try {
+    const r = await fetch('../data/immersive_points.json');
+    dataPoints = await r.json();
+  } catch (e) {
+    dataPoints = Array.from({ length: 300 }, () => ({
+      x: Math.random() * 10 - 5,
+      y: Math.random() * 6,
+      z: Math.random() * 10 - 5,
+      value: Math.random(),
+    }));
+  }
+  renderPoints();
+  document.getElementById('status').textContent =
+    `${dataPoints.length} points loaded`;
+}
+
+const tooltip = document.createElement('div');
+tooltip.style.cssText = `
+  position: fixed; pointer-events: none; z-index: 20;
+  background: rgba(20,20,20,0.95); border: 1px solid #8b0000;
+  padding: 8px 12px; font-size: 11px; color: #e0e0e0;
+  border-radius: 3px; display: none; letter-spacing: 1px;
+`;
+document.body.appendChild(tooltip);
+
+renderer.domElement.addEventListener('pointermove', (ev) => {
+  pointer.x = (ev.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(ev.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  if (!pointsMesh) return;
+  const hits = raycaster.intersectObject(pointsMesh);
+  if (hits.length) {
+    const idx = hits[0].index;
+    const p = dataPoints[idx];
+    tooltip.style.display = 'block';
+    tooltip.style.left = (ev.clientX + 14) + 'px';
+    tooltip.style.top  = (ev.clientY + 14) + 'px';
+    tooltip.textContent =
+      `x:${p.x.toFixed(2)} y:${p.y.toFixed(2)} z:${p.z.toFixed(2)} ` +
+      `value:${p.value.toFixed(3)}`;
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 3, 0);
+controls.enableDamping = true;
+
+if (navigator.xr) {
+  navigator.xr.isSessionSupported('immersive-vr').then((ok) => {
+    const btn = document.getElementById('enter-vr');
+    btn.disabled = !ok;
+    if (ok) {
+      btn.addEventListener('click', async () => {
+        const session = await navigator.xr.requestSession(
+          'immersive-vr',
+          { optionalFeatures: ['local-floor', 'hand-tracking'] }
+        );
+        renderer.xr.setSession(session);
+        btn.textContent = 'VR Active';
+      });
+    }
+  });
+}
+
+function animate() {
+  controls.update();
+  if (pointsMesh) pointsMesh.rotation.y += 0.0008;
+  renderer.render(scene, camera);
+}
+renderer.setAnimationLoop(animate);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+loadData();
+</script>
+</body>
+</html>
