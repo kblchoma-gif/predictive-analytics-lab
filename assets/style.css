@@ -1,0 +1,43 @@
+body {
+    background-color: #0a0a0a;
+    color: #e0e0e0;
+    font-family: 'Inter', Helvetica, Arial, sans-serif;
+    margin: 0;
+}
+
+#main-tabs .tab-content {
+    background-color: #0a0a0a;
+    padding: 24px 32px;
+    border: none;
+}
+
+.rc-slider-track { background-color: #8b0000; }
+.rc-slider-handle { border-color: #8b0000; background-color: #0a0a0a; }
+.rc-slider-handle:hover,
+.rc-slider-handle:focus { border-color: #b03030; }
+.rc-slider-dot { background-color: #222; border-color: #222; }
+.rc-slider-dot-active { border-color: #8b0000; }
+.rc-slider-mark-text { color: #888; font-size: 10px; }
+
+.dash-table-container .dash-spreadsheet-container
+.dash-spreadsheet-inner td {
+    background-color: #0a0a0a !important;
+    color: #e0e0e0 !important;
+}
+.dash-table-container .dash-spreadsheet-container
+.dash-spreadsheet-inner th {
+    background-color: #141414 !important;
+    color: #e0e0e0 !important;
+}
+
+button { font-family: 'Inter', Helvetica, sans-serif;
+         transition: background-color 0.15s ease; }
+button:hover { background-color: #a00000 !important; }
+
+a { color: #8b0000; }
+a:hover { color: #b03030; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #8b0000; }
